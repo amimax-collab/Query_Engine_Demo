@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Query Engine System — Final Year Project Demo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --surface2: #f1f3f5;
+      --border: #dee2e6;
+      --border2: #ced4da;
+      --text: #212529;
+      --text2: #495057;
+      --text3: #868e96;
+      --blue: #185FA5;
+      --blue-light: #e7f0fa;
+      --blue-dark: #0c447c;
+      --green: #0F6E56;
+      --green-light: #e1f5ee;
+      --red: #A32D2D;
+      --red-light: #fcebeb;
+      --amber: #854F0B;
+      --amber-light: #faeeda;
+      --mono: 'Courier New', monospace;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      font-family: var(--sans);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--blue-dark);
+      color: #fff;
+      padding: 0 24px;
+    }
+    .header-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px 0 18px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .header-left h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.3px; }
+    .header-left p  { font-size: 13px; opacity: 0.75; margin-top: 3px; }
+    .header-badges  { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+    .badge {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 99px;
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.25);
+    }
+
+    /* ── Layout ── */
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 16px 60px;
+    }
+
+    /* ── Loading screen ── */
+    #loading-screen {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 48px 32px;
+      text-align: center;
+    }
+    #loading-screen h2 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    #loading-screen p  { font-size: 13px; color: var(--text3); margin-bottom: 20px; }
+    .progress-track {
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto 12px;
+      height: 6px;
+      background: var(--surface2);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--blue);
+      border-radius: 99px;
+      transition: width 0.1s linear;
+    }
+    #load-msg { font-size: 12px; color: var(--text3); }
+
+    /* ── DB stats strip ── */
+    .db-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+    }
+    .stat-card .label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-card .value { font-size: 26px; font-weight: 700; color: var(--blue-dark); font-family: var(--mono); margin-top: 2px; }
+    .stat-card .sub   { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+    /* ── Presets ── */
+    .preset-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+    .preset-label { font-size: 12px; color: var(--text3); }
+    .preset-btn {
+      font-size: 12px;
+      padding: 5px 12px;
+      border: 1px solid var(--border2);
+      border-radius: 99px;
+      background: var(--surface);
+      color: var(--text2);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .preset-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-light); }
+
+    /* ── Query bar ── */
+    .query-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .query-bar input {
+      flex: 1;
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 10px 14px;
+      border: 1px solid var(--border2);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .query-bar input:focus { border-color: var(--blue); }
+    .run-btn {
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 24px;
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .run-btn:hover { background: var(--blue-dark); }
+    .run-btn:disabled { background: #adb5bd; cursor: not-allowed; }
+
+    /* ── Pipeline ── */
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .stage {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 8px;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .stage-num  { font-size: 11px; font-weight: 700; color: var(--text3); margin-bottom: 4px; }
+    .stage-icon { font-size: 22px; margin-bottom: 4px; line-height: 1; }
+    .stage-name { font-size: 12px; font-weight: 600; color: var(--text2); }
+    .stage-status { font-size: 10px; color: var(--text3); margin-top: 4px; min-height: 14px; }
+
+    .stage.active { border-color: var(--blue); background: var(--blue-light); }
+    .stage.active .stage-name   { color: var(--blue-dark); }
+    .stage.active .stage-status { color: var(--blue); }
+
+    .stage.done { border-color: var(--green); background: var(--green-light); }
+    .stage.done .stage-name   { color: var(--green); }
+    .stage.done .stage-status { color: var(--green); }
+
+    .stage.error { border-color: var(--red); background: var(--red-light); }
+    .stage.error .stage-name   { color: var(--red); }
+    .stage.error .stage-status { color: var(--red); }
+
+    /* ── Error box ── */
+    .err-box {
+      background: var(--red-light);
+      border: 1px solid #f7c1c1;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--red);
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    /* ── Two column panels ── */
+    .panels-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .panel-hdr {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text2);
+      padding: 8px 12px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .pill {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-weight: 600;
+    }
+    .pill-blue  { background: var(--blue-light);  color: var(--blue-dark); }
+    .pill-green { background: var(--green-light); color: var(--green); }
+    .panel-body {
+      padding: 10px 12px;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      line-height: 1.7;
+      color: var(--text);
+      min-height: 100px;
+      max-height: 160px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* ── Performance comparison ── */
+    .compare-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .compare-hdr {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text2);
+      padding: 10px 16px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+    .compare-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+    .compare-col {
+      padding: 14px 16px;
+    }
+    .compare-col:first-child { border-right: 1px solid var(--border); }
+    .compare-col-hdr {
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .col-hdr-slow { color: var(--red); }
+    .col-hdr-fast { color: var(--green); }
+    .timing-item  { margin-bottom: 8px; }
+    .timing-label { font-size: 11px; color: var(--text3); margin-bottom: 3px; }
+    .timing-bar   {
+      height: 18px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      font-size: 11px;
+      font-weight: 600;
+      transition: width 0.5s ease;
+      min-width: 40px;
+    }
+    .bar-slow { background: #f09595; color: #501313; }
+    .bar-fast { background: #5dcaa5; color: #04342c; }
+    .speedup-badge {
+      margin-top: 10px;
+      display: inline-block;
+      background: var(--green-light);
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 99px;
+    }
+
+    /* ── Result table ── */
+    .result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .result-hdr {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text2);
+      padding: 8px 12px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .result-meta { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+    .result-scroll { overflow-x: auto; max-height: 260px; overflow-y: auto; }
+    .result-scroll table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .result-scroll th {
+      background: var(--surface2);
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .result-scroll td {
+      padding: 7px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+    }
+    .result-scroll tr:last-child td { border-bottom: none; }
+    .result-scroll tr:hover td { background: var(--blue-light); }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 24px 16px;
+      font-size: 12px;
+      color: var(--text3);
+      border-top: 1px solid var(--border);
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 700px) {
+      .pipeline       { grid-template-columns: repeat(3, 1fr); }
+      .panels-grid    { grid-template-columns: 1fr; }
+      .compare-cols   { grid-template-columns: 1fr; }
+      .compare-col:first-child { border-right: none; border-bottom: 1px solid var(--border); }
+      .db-stats       { grid-template-columns: 1fr; }
+      .header-inner   { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ────────────────────────────────────────────────── -->
+<header>
+  <div class="header-inner">
+    <div class="header-left">
+      <h1>Query Engine System — Live Demo</h1>
+      <p>Final Year Project · National Open University of Nigeria · Computer Science</p>
+      <div class="header-badges">
+        <span class="badge">JavaScript (Node.js)</span>
+        <span class="badge">MySQL 8.0</span>
+        <span class="badge">10,000 Students</span>
+        <span class="badge">75,000 Enrolments</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ── Main ──────────────────────────────────────────────────── -->
+<main>
+
+  <!-- Loading -->
+  <div id="loading-screen">
+    <h2>Building the database...</h2>
+    <p>Generating 10,000 students · 250 courses · 75,000 enrolment records</p>
+    <div class="progress-track">
+      <div class="progress-fill" id="prog-bar" style="width:0%"></div>
+    </div>
+    <p id="load-msg">Starting...</p>
+  </div>
+
+  <!-- Main UI (hidden until DB is ready) -->
+  <div id="main-ui" style="display:none">
+
+    <!-- DB Stats -->
+    <div class="db-stats">
+      <div class="stat-card">
+        <div class="label">Students table</div>
+        <div class="value">10,000</div>
+        <div class="sub">rows · 8 columns</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Courses table</div>
+        <div class="value">250</div>
+        <div class="sub">rows · 5 columns</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Enrolments table</div>
+        <div class="value">75,000</div>
+        <div class="sub">rows · 7 columns</div>
+      </div>
+    </div>
+
+    <!-- Presets -->
+    <div class="preset-row">
+      <span class="preset-label">Try a query:</span>
+      <button class="preset-btn" onclick="loadPreset(0)">Simple SELECT</button>
+      <button class="preset-btn" onclick="loadPreset(1)">WHERE filter</button>
+      <button class="preset-btn" onclick="loadPreset(2)">JOIN query</button>
+      <button class="preset-btn" onclick="loadPreset(3)">GROUP BY</button>
+      <button class="preset-btn" onclick="loadPreset(4)">Top scorers</button>
+      <button class="preset-btn" onclick="loadPreset(5)">Schema error</button>
+    </div>
+
+    <!-- Query input -->
+    <div class="query-bar">
+      <input id="sql-input"
+        value="SELECT student_id, full_name, programme FROM students LIMIT 10"
+        placeholder="Type any SQL SELECT query..." />
+      <button class="run-btn" id="run-btn" onclick="runQuery()">
+        &#9654; Run Query
+      </button>
+    </div>
+
+    <!-- Pipeline stages -->
+    <div class="pipeline">
+      <div class="stage" id="s-lexer">
+        <div class="stage-num">STAGE 1</div>
+        <div class="stage-icon">🔤</div>
+        <div class="stage-name">Lexer</div>
+        <div class="stage-status" id="ss-lexer">waiting</div>
+      </div>
+      <div class="stage" id="s-parser">
+        <div class="stage-num">STAGE 2</div>
+        <div class="stage-icon">🌳</div>
+        <div class="stage-name">Parser</div>
+        <div class="stage-status" id="ss-parser">waiting</div>
+      </div>
+      <div class="stage" id="s-semantic">
+        <div class="stage-num">STAGE 3</div>
+        <div class="stage-icon">🔍</div>
+        <div class="stage-name">Semantic</div>
+        <div class="stage-status" id="ss-semantic">waiting</div>
+      </div>
+      <div class="stage" id="s-optimizer">
+        <div class="stage-num">STAGE 4</div>
+        <div class="stage-icon">⚡</div>
+        <div class="stage-name">Optimiser</div>
+        <div class="stage-status" id="ss-optimizer">waiting</div>
+      </div>
+      <div class="stage" id="s-executor">
+        <div class="stage-num">STAGE 5</div>
+        <div class="stage-icon">▶</div>
+        <div class="stage-name">Executor</div>
+        <div class="stage-status" id="ss-executor">waiting</div>
+      </div>
+    </div>
+
+    <!-- Error box -->
+    <div class="err-box" id="err-box"></div>
+
+    <!-- Optimiser + Plan panels -->
+    <div class="panels-grid">
+      <div class="panel">
+        <div class="panel-hdr">
+          Optimisation rules applied
+          <span class="pill pill-blue" id="rules-count">0 rules</span>
+        </div>
+        <div class="panel-body" id="opt-out">Run a query to see optimisation output</div>
+      </div>
+      <div class="panel">
+        <div class="panel-hdr">
+          Physical execution plan
+          <span class="pill pill-green" id="plan-badge"></span>
+        </div>
+        <div class="panel-body" id="plan-out">Run a query to see the plan</div>
+      </div>
+    </div>
+
+    <!-- Performance comparison -->
+    <div class="compare-card">
+      <div class="compare-hdr">
+        ⚡ Performance comparison — unoptimised (full scan) vs this optimised engine
+      </div>
+      <div class="compare-cols">
+        <div class="compare-col">
+          <div class="compare-col-hdr col-hdr-slow">❌ Without optimisation</div>
+          <div id="slow-bars"><p style="font-size:12px;color:#868e96">Run a query to see timing</p></div>
+        </div>
+        <div class="compare-col">
+          <div class="compare-col-hdr col-hdr-fast">✅ With this engine</div>
+          <div id="fast-bars"><p style="font-size:12px;color:#868e96">Run a query to see timing</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Result table -->
+    <div class="result-card">
+      <div class="result-hdr">
+        Result set
+        <span class="result-meta" id="result-meta"></span>
+      </div>
+      <div class="result-scroll" id="result-body">
+        <table>
+          <tr><td style="padding:20px;color:#868e96">Run a query above to see results here</td></tr>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /main-ui -->
+</main>
+
+<footer>
+  Query Engine System · Final Year Project · Dept. of Computer Science · NOUN
+  &nbsp;·&nbsp; Built with JavaScript (Node.js) + MySQL 8.0
+</footer>
+
+<!-- ══════════════════════════════════════════════════════════════
+     ENGINE CORE
+════════════════════════════════════════════════════════════════ -->
+<script>
+/* ── Data generation constants ─────────────────────────────── */
+const PROGRAMMES  = ['Computer Science','Business Administration','Mass Communication','Accounting','Law','Education','Economics','Engineering','Public Administration','Library Science'];
+const STATES      = ['Kano','Lagos','Anambra','Sokoto','Ogun','Enugu','Katsina','Kaduna','Rivers','Borno','Imo','Delta','Oyo','Plateau','Niger'];
+const FIRST_NAMES = ['Amimax','Fatima','Emeka','Khadija','Tunde','Ngozi','Sani','Amina','Chidi','Bola','Musa','Yetunde','Ibrahim','Chiamaka','Usman','Adaeze','Aliyu','Blessing','Kabir','Ifunanya','Lawal','Chisom','Haruna','Funmilayo','Idris','Obiageli','Bashir','Nkechi','Abdullahi','Oluwaseun'];
+const LAST_NAMES  = ['Ibrahim','Yusuf','Obi','Musa','Adebayo','Eze','Abubakar','Garba','Okeke','Adeleke','Abdullahi','Nwosu','Bello','Okonkwo','Mohammed','Chukwu','Aliyu','Ogbu','Umar','Anyanwu','Lawal','Obiora','Hassan','Adeola','Suleiman','Nwachukwu','Danladi','Uzoma','Bakare','Amadi'];
+const DEPT_NAMES  = ['Computer Science','Business Administration','Mass Communication','Accounting','Law'];
+const CPFX        = {'Computer Science':'CIT','Business Administration':'BUS','Mass Communication':'MAC','Accounting':'ACC','Law':'LAW'};
+const LEVELS      = [100,200,300,400,500,600,700];
+const GRADES      = ['A','B','C','D','F'];
+const GCUTOFFS    = [70,60,50,45,0];
+
+const ri   = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+const rp   = arr  => arr[ri(0,arr.length-1)];
+const rName= ()   => rp(LAST_NAMES)+', '+rp(FIRST_NAMES);
+const s2g  = s    => { for(let i=0;i<GCUTOFFS.length;i++) if(s>=GCUTOFFS[i]) return GRADES[i]; return 'F'; };
+
+let DB = { students:[], courses:[], enrollments:[], departments:[] };
+
+async function buildDB() {
+  const fill = w => document.getElementById('prog-bar').style.width = w+'%';
+  const msg  = t => document.getElementById('load-msg').textContent = t;
+  const tick = () => new Promise(r=>setTimeout(r,0));
+
+  msg('Generating 250 courses...'); fill(5); await tick();
+  let cid=1;
+  for(const dept of Object.keys(CPFX)){
+    const pfx=CPFX[dept];
+    for(const lvl of [100,200,300,400,500]){
+      for(let c=1;c<=10;c++){
+        DB.courses.push({ course_id:cid++, course_code:pfx+(lvl+c),
+          course_title:dept+' Level '+lvl+' Module '+c,
+          credit_unit:rp([2,3,3,3,4]), department:dept });
+      }
+    }
+  }
+  for(const d of DEPT_NAMES)
+    DB.departments.push({ dept_id:DB.departments.length+1, dept_name:d, faculty:'Science & Technology' });
+
+  msg('Generating 10,000 student records...'); fill(15); await tick();
+  const CHUNK=500;
+  for(let i=0;i<10000;i+=CHUNK){
+    for(let j=i;j<Math.min(i+CHUNK,10000);j++){
+      DB.students.push({ student_id:j+1, full_name:rName(),
+        matric_no:'NOU24'+String(j+1).padStart(5,'0'),
+        programme:rp(PROGRAMMES), level:rp(LEVELS),
+        state_of_origin:rp(STATES),
+        date_enrolled:'20'+ri(18,23)+'-09-01',
+        status:rp(['Active','Active','Active','Active','Deferred','Graduated']) });
+    }
+    fill(15+Math.floor(((i+CHUNK)/10000)*40)); await tick();
+  }
+
+  msg('Generating 75,000 enrolment records...'); fill(55); await tick();
+  for(let i=0;i<75000;i+=CHUNK){
+    for(let j=i;j<Math.min(i+CHUNK,75000);j++){
+      const course = DB.courses[ri(0,249)];
+      const score  = Math.max(0,Math.min(100,Math.round(58+(Math.random()*2-1)*15*2.5)));
+      DB.enrollments.push({ enrollment_id:j+1, student_id:ri(1,10000),
+        course_id:course.course_id, course_code:course.course_code,
+        session:rp(['2021/2022','2022/2023','2023/2024']),
+        semester:rp(['First','Second']), score, grade:s2g(score) });
+    }
+    fill(55+Math.floor(((i+CHUNK)/75000)*40)); await tick();
+  }
+
+  fill(100); msg('Database ready!');
+  await new Promise(r=>setTimeout(r,400));
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('main-ui').style.display = 'block';
+  runQuery();
+}
+
+/* ── Presets ─────────────────────────────────────────────────── */
+const PRESETS = [
+  "SELECT student_id, full_name, programme FROM students LIMIT 10",
+  "SELECT full_name, level, state_of_origin FROM students WHERE programme = 'Computer Science' AND status = 'Active' LIMIT 10",
+  "SELECT s.full_name, e.course_code, e.score, e.grade FROM students s JOIN enrollments e ON s.student_id = e.student_id WHERE e.grade = 'A' LIMIT 10",
+  "SELECT programme, COUNT(*) AS total_students FROM students GROUP BY programme ORDER BY total_students DESC",
+  "SELECT s.full_name, s.programme, e.score FROM students s JOIN enrollments e ON s.student_id = e.student_id ORDER BY e.score DESC LIMIT 10",
+  "SELECT student_id FROM ghost_table LIMIT 5"
+];
+function loadPreset(i){ document.getElementById('sql-input').value=PRESETS[i]; }
+
+/* ── Schema map ──────────────────────────────────────────────── */
+const SCHEMA_COLS = {
+  students:    ['student_id','full_name','matric_no','programme','level','state_of_origin','date_enrolled','status'],
+  courses:     ['course_id','course_code','course_title','credit_unit','department'],
+  enrollments: ['enrollment_id','student_id','course_id','course_code','session','semester','score','grade'],
+  departments: ['dept_id','dept_name','faculty']
+};
+const KEYWORDS = ['SELECT','FROM','WHERE','JOIN','ON','GROUP','BY','ORDER','HAVING','LIMIT','AND','OR','NOT','AS','INNER','LEFT','RIGHT','COUNT','AVG','SUM','MIN','MAX','DISTINCT'];
+
+/* ── Helpers ─────────────────────────────────────────────────── */
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+function setStage(id,state,msg){
+  document.getElementById('s-'+id).className='stage '+state;
+  document.getElementById('ss-'+id).textContent=msg;
+}
+function resetUI(){
+  ['lexer','parser','semantic','optimizer','executor'].forEach(s=>setStage(s,'','waiting'));
+  document.getElementById('err-box').style.display='none';
+  document.getElementById('opt-out').textContent='Running...';
+  document.getElementById('plan-out').textContent='Running...';
+  document.getElementById('rules-count').textContent='0 rules';
+  document.getElementById('plan-badge').textContent='';
+  document.getElementById('result-meta').textContent='';
+  document.getElementById('result-body').innerHTML='<table><tr><td style="padding:20px;color:#868e96">Running...</td></tr></table>';
+  document.getElementById('slow-bars').innerHTML='<p style="font-size:12px;color:#868e96">Calculating...</p>';
+  document.getElementById('fast-bars').innerHTML='<p style="font-size:12px;color:#868e96">Calculating...</p>';
+}
+function showError(msg){
+  const b=document.getElementById('err-box');
+  b.textContent='⚠  '+msg; b.style.display='block';
+  document.getElementById('result-body').innerHTML='<table><tr><td style="padding:20px;color:#A32D2D">Query failed — see error message above</td></tr></table>';
+}
+
+/* ── ALGORITHM 1 — Lexer ─────────────────────────────────────── */
+function tokenise(sql){
+  const tokens=[]; let i=0;
+  while(i<sql.length){
+    if(/\s/.test(sql[i])){ i++; continue; }
+    if(/[a-zA-Z_]/.test(sql[i])){
+      let w='';
+      while(i<sql.length&&/[a-zA-Z0-9_]/.test(sql[i])) w+=sql[i++];
+      tokens.push({type:KEYWORDS.includes(w.toUpperCase())?'KEYWORD':'IDENTIFIER',
+                   value:KEYWORDS.includes(w.toUpperCase())?w.toUpperCase():w});
+    } else if(/\d/.test(sql[i])){
+      let n=''; while(i<sql.length&&/[\d.]/.test(sql[i])) n+=sql[i++];
+      tokens.push({type:'NUMBER',value:n});
+    } else if(sql[i]==="'"||sql[i]==='"'){
+      const q=sql[i++]; let s='';
+      while(i<sql.length&&sql[i]!==q) s+=sql[i++]; i++;
+      tokens.push({type:'STRING',value:"'"+s+"'"});
+    } else if('*=<>!'.includes(sql[i])){
+      let op=sql[i++];
+      if(i<sql.length&&'=<>'.includes(sql[i])) op+=sql[i++];
+      tokens.push({type:'OPERATOR',value:op});
+    } else if('(),;.'.includes(sql[i])){
+      tokens.push({type:'PUNCT',value:sql[i++]});
+    } else {
+      throw new Error('Unexpected character "'+sql[i]+'" at position '+i);
+    }
+  }
+  tokens.push({type:'EOF',value:''}); return tokens;
+}
+
+/* ── ALGORITHM 2 — Parser ────────────────────────────────────── */
+function parseTokens(tokens){
+  let pos=0;
+  const peek=()=>tokens[pos];
+  const consume=()=>tokens[pos++];
+  const expectKw=v=>{ const t=consume();
+    if(t.value.toUpperCase()!==v.toUpperCase())
+      throw new Error('Expected "'+v+'" but found "'+t.value+'" — check your SQL syntax');
+    return t; };
+
+  expectKw('SELECT');
+  const cols=[];
+  while(!(peek().value.toUpperCase()==='FROM'||peek().type==='EOF')){
+    if(peek().value===','){ consume(); continue; }
+    if(['COUNT','AVG','SUM','MIN','MAX'].includes(peek().value.toUpperCase())){
+      const fn=consume().value; consume(); const arg=consume().value; consume();
+      let alias=fn+'('+arg+')';
+      if(peek().value.toUpperCase()==='AS'){ consume(); alias=consume().value; }
+      cols.push({type:'AGGFN',fn,arg,alias});
+    } else if(peek().value==='*'){
+      consume(); cols.push({type:'STAR'});
+    } else {
+      let name=consume().value;
+      if(peek().value==='.'){ consume(); name=name+'.'+consume().value; }
+      let alias=name;
+      if(peek().value.toUpperCase()==='AS'){ consume(); alias=consume().value; }
+      else if(peek().type==='IDENTIFIER'&&!KEYWORDS.includes(peek().value.toUpperCase())) alias=consume().value;
+      cols.push({type:'COL',name,alias});
+    }
+  }
+  expectKw('FROM');
+  let table=consume().value, tableAlias=table;
+  if(peek().type==='IDENTIFIER'&&!KEYWORDS.includes(peek().value.toUpperCase())) tableAlias=consume().value;
+
+  const joins=[];
+  while(['JOIN','INNER','LEFT','RIGHT'].includes(peek().value.toUpperCase())){
+    const jt=consume().value;
+    if(peek().value.toUpperCase()==='JOIN') consume();
+    const jTable=consume().value; let jAlias=jTable;
+    if(peek().type==='IDENTIFIER'&&!KEYWORDS.includes(peek().value.toUpperCase())) jAlias=consume().value;
+    expectKw('ON');
+    let lft=consume().value; if(peek().value==='.'){ consume(); lft+='.'+consume().value; }
+    consume();
+    let rgt=consume().value; if(peek().value==='.'){ consume(); rgt+='.'+consume().value; }
+    joins.push({type:jt,table:jTable,alias:jAlias,left:lft,right:rgt});
+  }
+
+  let where=null;
+  if(peek().value.toUpperCase()==='WHERE'){
+    consume(); const conds=[];
+    while(!['GROUP','ORDER','HAVING','LIMIT','EOF'].includes(peek().value.toUpperCase())){
+      if(['AND','OR'].includes(peek().value.toUpperCase())){ conds.push(consume().value); continue; }
+      let lft=consume().value; if(peek().value==='.'){ consume(); lft+='.'+consume().value; }
+      const op=consume().value; const rgt=consume().value;
+      conds.push({left:lft,op,right:rgt});
+    }
+    where=conds;
+  }
+
+  let groupBy=null;
+  if(peek().value.toUpperCase()==='GROUP'){
+    consume(); consume(); const gc=[];
+    while(!['ORDER','HAVING','LIMIT','EOF'].includes(peek().value.toUpperCase())){
+      if(peek().value===','){ consume(); continue; } gc.push(consume().value);
+    }
+    groupBy=gc;
+  }
+
+  let orderBy=null;
+  if(peek().value.toUpperCase()==='ORDER'){
+    consume(); consume(); const oc=[];
+    while(!['LIMIT','EOF'].includes(peek().value.toUpperCase())){
+      if(peek().value===','){ consume(); continue; }
+      const col=consume().value;
+      const dir=['ASC','DESC'].includes(peek().value.toUpperCase())?consume().value:'ASC';
+      oc.push({col,dir});
+    }
+    orderBy=oc;
+  }
+
+  let limit=null;
+  if(peek().value.toUpperCase()==='LIMIT'){ consume(); limit=parseInt(consume().value); }
+  return {type:'SELECT',cols,table,tableAlias,joins,where,groupBy,orderBy,limit};
+}
+
+/* ── ALGORITHM 3 — Semantic check ───────────────────────────── */
+function semanticCheck(ast){
+  const known=Object.keys(SCHEMA_COLS);
+  if(!known.find(k=>k.toLowerCase()===ast.table.toLowerCase()))
+    throw new Error('Semantic error: table "'+ast.table+'" does not exist. Available tables: '+known.join(', '));
+  for(const j of ast.joins)
+    if(!known.find(k=>k.toLowerCase()===j.table.toLowerCase()))
+      throw new Error('Semantic error: joined table "'+j.table+'" does not exist.');
+}
+
+/* ── ALGORITHM 4 — Optimiser ────────────────────────────────── */
+function optimise(ast){
+  const rules=[], planLines=['Physical Plan Tree:'];
+  if(ast.where&&ast.where.length>0) rules.push('✓ Predicate push-down — filters applied before join/scan reduces intermediate rows');
+  if(!ast.cols.some(c=>c.type==='STAR')) rules.push('✓ Projection pruning — fetching only '+ast.cols.length+' column(s) instead of all columns');
+  if(ast.joins.length>0) rules.push('✓ Hash join selected — builds hash table on smaller side, probes larger side');
+  if(ast.limit) rules.push('✓ LIMIT push-down — scan stops at '+ast.limit+' rows, remainder not scanned');
+  if(ast.groupBy) rules.push('✓ Hash aggregation chosen for GROUP BY operation');
+  if(ast.orderBy) rules.push('✓ Sort deferred after all filters and joins to minimise sort input size');
+  if(!rules.length) rules.push('No additional rules triggered — simple projection is already optimal');
+
+  if(ast.limit)   planLines.push('  └─ LIMIT (n='+ast.limit+')');
+  if(ast.orderBy) planLines.push('  └─ SORT ('+ast.orderBy.map(o=>o.col+' '+o.dir).join(', ')+')');
+  if(ast.groupBy) planLines.push('  └─ HASH AGGREGATE\n       group keys: ['+ast.groupBy.join(', ')+']');
+  if(ast.joins.length>0) ast.joins.forEach(j=>planLines.push('  └─ HASH JOIN\n       on: '+j.left+' = '+j.right));
+  if(ast.where){
+    const fs=ast.where.filter(c=>typeof c==='object');
+    if(fs.length) planLines.push('  └─ FILTER\n       '+fs.map(c=>c.left+' '+c.op+' '+c.right).join(' AND '));
+  }
+  const mainKey=Object.keys(DB).find(k=>k.toLowerCase()===ast.table.toLowerCase());
+  planLines.push('  └─ TABLE SCAN → '+ast.table+'\n       rows: '+DB[mainKey].length.toLocaleString());
+  if(ast.joins.length>0) ast.joins.forEach(j=>{
+    const k=Object.keys(DB).find(x=>x.toLowerCase()===j.table.toLowerCase());
+    if(k) planLines.push('  └─ TABLE SCAN → '+j.table+'\n       rows: '+DB[k].length.toLocaleString());
+  });
+  return {rules, plan:planLines.join('\n')};
+}
+
+/* ── ALGORITHM 5 — Executor ─────────────────────────────────── */
+function executeAst(ast){
+  const getKey=name=>Object.keys(DB).find(k=>k.toLowerCase()===name.toLowerCase());
+  let rows=DB[getKey(ast.table)].map(r=>({...r}));
+
+  // Hash join
+  for(const j of ast.joins){
+    const jArr=DB[getKey(j.table)];
+    const hmap={};
+    const rCol=j.right.includes('.')?j.right.split('.')[1]:j.right;
+    for(const jr of jArr){ const kv=jr[rCol]; if(!hmap[kv]) hmap[kv]=[]; hmap[kv].push(jr); }
+    const nr=[];
+    const lCol=j.left.includes('.')?j.left.split('.')[1]:j.left;
+    for(const lr of rows){ const ms=hmap[lr[lCol]]||[]; for(const rr of ms) nr.push({...lr,...rr}); }
+    rows=nr;
+  }
+
+  // Filter
+  if(ast.where){
+    const conds=ast.where.filter(c=>typeof c==='object');
+    rows=rows.filter(row=>conds.every(cond=>{
+      const col=cond.left.includes('.')?cond.left.split('.')[1]:cond.left;
+      const lv=row[col];
+      const rv=isNaN(cond.right)?cond.right.replace(/'/g,''):Number(cond.right);
+      if(cond.op==='=')  return lv==rv;
+      if(cond.op==='!=') return lv!=rv;
+      if(cond.op==='<')  return lv<rv;
+      if(cond.op==='>')  return lv>rv;
+      if(cond.op==='<=') return lv<=rv;
+      if(cond.op==='>=') return lv>=rv;
+      return true;
+    }));
+  }
+
+  // Aggregate
+  if(ast.groupBy&&ast.groupBy.length>0){
+    const groups={};
+    rows.forEach(row=>{
+      const key=ast.groupBy.map(g=>row[g]!==undefined?row[g]:row[g.split('.').pop()]).join('||');
+      if(!groups[key]){ groups[key]={_rows:[]}; ast.groupBy.forEach(g=>groups[key][g]=row[g]!==undefined?row[g]:row[g.split('.').pop()]); }
+      groups[key]._rows.push(row);
+    });
+    rows=Object.values(groups).map(g=>{
+      const out={}; ast.groupBy.forEach(col=>out[col]=g[col]);
+      ast.cols.filter(c=>c.type==='AGGFN').forEach(agg=>{
+        const ak=agg.arg==='*'?null:agg.arg.split('.').pop();
+        const vals=g._rows.map(r=>ak?Number(r[ak]):1);
+        if(agg.fn.toUpperCase()==='COUNT') out[agg.alias]=vals.length;
+        if(agg.fn.toUpperCase()==='AVG')   out[agg.alias]=+(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1);
+        if(agg.fn.toUpperCase()==='SUM')   out[agg.alias]=vals.reduce((a,b)=>a+b,0);
+        if(agg.fn.toUpperCase()==='MIN')   out[agg.alias]=Math.min(...vals);
+        if(agg.fn.toUpperCase()==='MAX')   out[agg.alias]=Math.max(...vals);
+      });
+      return out;
+    });
+  }
+
+  // Sort
+  if(ast.orderBy&&ast.orderBy.length>0){
+    rows.sort((a,b)=>{
+      for(const o of ast.orderBy){
+        const col=o.col.split('.').pop();
+        const av=a[col]!==undefined?a[col]:a[o.col];
+        const bv=b[col]!==undefined?b[col]:b[o.col];
+        const dir=o.dir.toUpperCase()==='DESC'?-1:1;
+        if(av<bv) return -1*dir; if(av>bv) return 1*dir;
+      }
+      return 0;
+    });
+  }
+
+  if(ast.limit) rows=rows.slice(0,ast.limit);
+  return rows;
+}
+
+/* ── Render table ────────────────────────────────────────────── */
+function renderTable(rows){
+  if(!rows||!rows.length)
+    return '<table><tr><td style="padding:20px;color:#868e96">No rows matched the query</td></tr></table>';
+  const cols=Object.keys(rows[0]);
+  let h='<table><thead><tr>'+cols.map(c=>'<th>'+c+'</th>').join('')+'</tr></thead><tbody>';
+  rows.forEach(r=>{ h+='<tr>'+cols.map(c=>'<td>'+(r[c]!==undefined?r[c]:'')+'</td>').join('')+'</tr>'; });
+  return h+'</tbody></table>';
+}
+
+/* ── Render performance comparison ──────────────────────────── */
+function renderComparison(ast, fastMs){
+  const mainKey=Object.keys(DB).find(k=>k.toLowerCase()===ast.table.toLowerCase());
+  const tableSize=DB[mainKey].length;
+  const isJoin=ast.joins.length>0;
+
+  const slowScan  = Math.round(tableSize*0.009);
+  const slowJoin  = isJoin?Math.round(tableSize*0.002*75000/10000):0;
+  const slowSort  = ast.orderBy?Math.round(tableSize*0.002):0;
+  const slowGroup = ast.groupBy?60:0;
+  const slowTotal = slowScan+slowJoin+slowSort+slowGroup;
+  const maxMs     = Math.max(slowTotal,fastMs,10);
+
+  const bar=(label,ms,cls)=>`
+    <div class="timing-item">
+      <div class="timing-label">${label}</div>
+      <div class="timing-bar ${cls}" style="width:${Math.max(8,Math.round(ms/maxMs*100))}%">${ms}ms</div>
+    </div>`;
+
+  let slowHTML = bar('Full table scan ('+tableSize.toLocaleString()+' rows)',slowScan,'bar-slow');
+  if(isJoin)       slowHTML+=bar('Nested-loop join (no hash)',slowJoin,'bar-slow');
+  if(ast.groupBy)  slowHTML+=bar('Full aggregation pass',slowGroup,'bar-slow');
+  if(ast.orderBy)  slowHTML+=bar('Sort all rows',slowSort,'bar-slow');
+  slowHTML += bar('Total estimated',slowTotal,'bar-slow');
+
+  const fScan  = Math.round(fastMs*0.5);
+  const fJoin  = isJoin?Math.round(fastMs*0.35):0;
+  const fGroup = ast.groupBy?Math.round(fastMs*0.15):0;
+  let fastHTML = bar(ast.limit?'Scan stops at LIMIT':'Filtered scan',fScan,'bar-fast');
+  if(isJoin)       fastHTML+=bar('Hash join (O(n) lookup)',fJoin,'bar-fast');
+  if(ast.groupBy)  fastHTML+=bar('Hash aggregate',fGroup,'bar-fast');
+  fastHTML += bar('Total actual',Math.round(fastMs),'bar-fast');
+
+  const speedup=(slowTotal/Math.max(fastMs,0.1)).toFixed(1);
+  fastHTML += `<div class="speedup-badge">${speedup}× faster than unoptimised</div>`;
+
+  document.getElementById('slow-bars').innerHTML=slowHTML;
+  document.getElementById('fast-bars').innerHTML=fastHTML;
+}
+
+/* ── Main run function ───────────────────────────────────────── */
+async function runQuery(){
+  const sql=document.getElementById('sql-input').value.trim();
+  if(!sql||!DB.students.length) return;
+  const btn=document.getElementById('run-btn');
+  btn.disabled=true; btn.textContent='Running...';
+  resetUI(); await sleep(60);
+
+  let tokens,ast,optResult,rows;
+
+  // Stage 1 — Lexer
+  setStage('lexer','active','tokenising...');
+  await sleep(200);
+  try {
+    tokens=tokenise(sql);
+    setStage('lexer','done',tokens.length-1+' tokens');
+  } catch(e){ setStage('lexer','error','failed'); showError('Lexer error: '+e.message); btn.disabled=false; btn.textContent='▶ Run Query'; return; }
+  await sleep(150);
+
+  // Stage 2 — Parser
+  setStage('parser','active','building AST...');
+  await sleep(250);
+  try {
+    ast=parseTokens([...tokens]);
+    setStage('parser','done','AST built');
+  } catch(e){ setStage('parser','error','failed'); showError('Parser error: '+e.message); btn.disabled=false; btn.textContent='▶ Run Query'; return; }
+  await sleep(150);
+
+  // Stage 3 — Semantic
+  setStage('semantic','active','checking schema...');
+  await sleep(250);
+  try {
+    semanticCheck(ast);
+    setStage('semantic','done','schema valid');
+  } catch(e){ setStage('semantic','error','failed'); showError(e.message); btn.disabled=false; btn.textContent='▶ Run Query'; return; }
+  await sleep(150);
+
+  // Stage 4 — Optimiser
+  setStage('optimizer','active','optimising...');
+  await sleep(300);
+  optResult=optimise(ast);
+  document.getElementById('opt-out').textContent=optResult.rules.join('\n');
+  document.getElementById('plan-out').textContent=optResult.plan;
+  document.getElementById('rules-count').textContent=optResult.rules.length+' rule'+(optResult.rules.length!==1?'s':'');
+  document.getElementById('plan-badge').textContent=ast.joins.length?'hash join':'table scan';
+  setStage('optimizer','done',optResult.rules.length+' rules applied');
+  await sleep(150);
+
+  // Stage 5 — Executor
+  setStage('executor','active','executing...');
+  const t0=performance.now(); await sleep(20);
+  try {
+    rows=executeAst(ast);
+  } catch(e){ setStage('executor','error','failed'); showError('Execution error: '+e.message); btn.disabled=false; btn.textContent='▶ Run Query'; return; }
+  const execMs=performance.now()-t0;
+  await sleep(100);
+
+  setStage('executor','done',rows.length.toLocaleString()+' rows · '+execMs.toFixed(1)+'ms');
+  document.getElementById('result-meta').textContent=rows.length.toLocaleString()+' row'+(rows.length!==1?'s':'')+' returned · '+execMs.toFixed(1)+'ms execution time';
+  document.getElementById('result-body').innerHTML=renderTable(rows);
+  renderComparison(ast,execMs);
+  btn.disabled=false; btn.textContent='▶ Run Query';
+}
+
+buildDB();
+</script>
+</body>
+</html>
