@@ -764,26 +764,45 @@ function parseTokens(tokens){
     where=conds;
   }
 
-  let groupBy=null;
-  if(peek().value.toUpperCase()==='GROUP'){
-    consume(); consume(); const gc=[];
-    while(!['ORDER','HAVING','LIMIT','EOF'].includes(peek().value.toUpperCase())){
-      if(peek().value===','){ consume(); continue; } gc.push(consume().value);
-    }
-    groupBy=gc;
+let groupBy = null;
+if (peek().type !== 'EOF' && peek().value.toUpperCase() === 'GROUP') {
+  consume(); // eat GROUP
+  if (peek().type !== 'EOF' && peek().value.toUpperCase() === 'BY') {
+    consume(); // eat BY
   }
+  const gc = [];
+  while (
+    peek().type !== 'EOF' &&
+    !['ORDER','HAVING','LIMIT'].includes(peek().value.toUpperCase())
+  ) {
+    if (peek().value === ',') { consume(); continue; }
+    let col = consume().value;
+    if (peek().value === '.') { consume(); col = col + '.' + consume().value; }
+    gc.push(col);
+  }
+  groupBy = gc;
+}
 
-  let orderBy=null;
-  if(peek().value.toUpperCase()==='ORDER'){
-    consume(); consume(); const oc=[];
-    while(!['LIMIT','EOF'].includes(peek().value.toUpperCase())){
-      if(peek().value===','){ consume(); continue; }
-      const col=consume().value;
-      const dir=['ASC','DESC'].includes(peek().value.toUpperCase())?consume().value:'ASC';
-      oc.push({col,dir});
-    }
-    orderBy=oc;
+let orderBy = null;
+if (peek().type !== 'EOF' && peek().value.toUpperCase() === 'ORDER') {
+  consume(); // eat ORDER
+  if (peek().type !== 'EOF' && peek().value.toUpperCase() === 'BY') {
+    consume(); // eat BY
   }
+  const oc = [];
+  while (
+    peek().type !== 'EOF' &&
+    !['LIMIT'].includes(peek().value.toUpperCase())
+  ) {
+    if (peek().value === ',') { consume(); continue; }
+    let col = consume().value;
+    if (peek().value === '.') { consume(); col = col + '.' + consume().value; }
+    const dir = ['ASC','DESC'].includes(peek().value.toUpperCase())
+                ? consume().value : 'ASC';
+    oc.push({ col, dir });
+  }
+  orderBy = oc;
+}
 
   let limit=null;
   if(peek().value.toUpperCase()==='LIMIT'){ consume(); limit=parseInt(consume().value); }
